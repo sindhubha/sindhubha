@@ -1,0 +1,11 @@
+"kWh": company_kwh_sum.get((company_id, equipment_id), 0) or row["kWh"]
+
+for row in data:
+    company_id = row["company_id"]
+    equipment_ids = [int(eid) for eid in row["equipment_ids"].split(",")]
+    total_kwh = row["kwh"]
+
+    for equipment_id in equipment_ids:
+        equipment_data = equipment_dict.get(equipment_id, {})
+        if equipment_data:
+            equipment_data["kWh"] += total_kwh
