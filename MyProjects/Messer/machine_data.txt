@@ -1,0 +1,12 @@
+[
+
+  {
+    "Data": {
+      "IdleReason": "Other",
+      "IdleReasonId": 1,
+      "TimestampEnd": "2023-07-05T05:00:17.638000+00:00",
+      "TimestampStart": "2023-07-04T18:56:19.316000+00:00"
+    },
+    "CommissionNumber": "211001520"
+  }
+]
