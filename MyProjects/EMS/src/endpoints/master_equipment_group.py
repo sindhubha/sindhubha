@@ -1,0 +1,132 @@
+from fastapi import APIRouter
+from fastapi import Form,Depends
+from sqlalchemy.orm import Session
+from log_file import createFolder
+from src.endpoints.response_json import _getReturnResponseJson,_getSuccessResponseJson,_getErrorResponseJson,get_exception_response
+from mysql_connection import get_db
+from src.models.mysql.master_equipment_group_model import equipment_group_Lists,getequipmentgroupdtl,saveequipment_group,updateequipment_group,updateequipment_groupStatus,changestatus_equipment_group,get_equipment_group_name,get_equipment_group_plant
+import os
+from sqlalchemy.ext.asyncio import AsyncSession
+
+file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..","..", "..", "..", "database.txt"))
+
+# Check if the file exists
+if os.path.exists(file_path):
+    with open(file_path, "r") as file:
+        content = file.read().strip()  # Remove leading/trailing whitespace
+   
+    if content == 'MySQL':
+        from mysql_connection import get_db
+        from src.models.mysql.master_equipment_group_model import equipment_group_Lists,getequipmentgroupdtl,saveequipment_group,updateequipment_group,updateequipment_groupStatus,changestatus_equipment_group,get_equipment_group_name,get_equipment_group_plant
+
+    elif content == 'MSSQL':
+        from mssql_connection import get_db
+    else:
+        raise Exception("Database is not configured or 'database.txt' contains an unexpected value.")
+else:
+    raise Exception("The 'database.txt' file does not exist in the specified location.")
+
+
+router = APIRouter()
+
+@router.post("/equipment_group_Lists/", tags=["Master Equipment Group"])
+async def equipment_group_Lists_api(equipment_group_id:str=Form(""),company_id:str=Form(""),cnx: AsyncSession = Depends(get_db)):
+    try: 
+
+        result = await equipment_group_Lists(equipment_group_id,company_id,cnx)
+
+        createFolder("Log/","Query executed successfully for equipment group list")
+        
+        response = {
+            "iserror": False,
+            "message": "Data Returned Successfully.",
+            "equipment_group_id": equipment_group_id,
+            "equipment_group_Lists": result
+        }
+
+        return response
+    
+    except Exception as e:
+        return get_exception_response(e)
+
+@router.post("/saveequipment_group/", tags=["Master Equipment Group"])
+async def saveequipment_group_api(equipment_group_id:str=Form(""),equipment_group_code:str=Form(""),equipment_group_name:str=Form(""),company_name:str=Form(""),user_login_id:str=Form(""),cnx: AsyncSession = Depends(get_db)):
+   
+    try:
+        if equipment_group_code == "" or equipment_group_name == "":
+            return _getErrorResponseJson("Fields Missing...")
+        if equipment_group_id == "":
+            result = await getequipmentgroupdtl(cnx, equipment_group_id, equipment_group_code, equipment_group_name)
+            if len(result)>0:
+                return _getErrorResponseJson("Entry Already Exists...")
+            
+            await saveequipment_group(cnx, equipment_group_code, equipment_group_name, company_name, user_login_id)
+            createFolder("Log/","Query executed successfully for save equipment group")
+            return _getSuccessResponseJson("Saved Successfully...")
+        else:
+            await updateequipment_group(cnx, equipment_group_id, equipment_group_code, equipment_group_name, company_name, user_login_id)
+            createFolder("Log/","Query executed successfully for update equipment group")
+            return _getSuccessResponseJson("Updated Successfully...")
+    except Exception as e:
+        return get_exception_response(e)
+    
+@router.post("/remove_equipment_group/", tags=["Master Equipment Group"])
+async def remove_equipment_group_api(equipment_group_id:str=Form(""),cnx: AsyncSession = Depends(get_db)):
+    
+    if equipment_group_id == "":
+        return _getErrorResponseJson("equipment group id is required")
+    
+    try:
+
+        await updateequipment_groupStatus(cnx, equipment_group_id)
+        createFolder("Log/","Query executed successfully for remove equipment group ")
+        return _getSuccessResponseJson("Deleted Successfully.")
+
+    except Exception as e:
+        return get_exception_response(e)
+    
+@router.post("/changestatus_equipment_group/", tags=["Master Equipment Group"])
+async def changestatus_equipment_group_api(equipment_group_id:str=Form(""),active_status:str=Form(""),cnx: AsyncSession = Depends(get_db)):
+
+    if equipment_group_id == "":
+       return _getErrorResponseJson("equipment group id is required")
+    
+    try:
+
+        await changestatus_equipment_group(cnx, equipment_group_id ,active_status)
+        createFolder("Log/","Query executed successfully for change equipment group status ")
+        return _getSuccessResponseJson("Status Changed Successfully.")
+
+    except Exception as e:
+        return get_exception_response(e)
+    
+@router.post("/get_equipment_group_name/", tags=["Master Equipment Group"])
+async def get_equipment_group_name_api(company_id:str=Form(""),equipment_class_id:str=Form(""),cnx: AsyncSession = Depends(get_db)):
+
+    try:
+
+        result = await get_equipment_group_name(cnx, company_id, equipment_class_id)
+        createFolder("Log/","Query executed successfully for get equipment group name ")
+        
+        return _getReturnResponseJson(result)
+    
+    except Exception as e:
+        return get_exception_response(e)
+    
+@router.post("/get_equipment_group_plant/", tags=["Master Equipment Group"])
+async def get_equipment_group_plant_api(plant_id:str=Form(""),plant_department_id:str=Form(""),equipment_class_id:str=Form(""),cnx: AsyncSession = Depends(get_db)):
+    
+    try:
+        result = await get_equipment_group_plant(cnx, plant_id, plant_department_id, equipment_class_id)
+        createFolder("Log/","Query executed successfully for get equipment group name ")
+        
+        result = {
+            "iserror": False,
+            "message": "Data Received Successfully.",
+            "equipment_group_Lists": result
+        }
+
+        return result
+    
+    except Exception as e:
+        return get_exception_response(e)
